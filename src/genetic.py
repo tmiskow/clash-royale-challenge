@@ -31,7 +31,7 @@ class DataSet(NamedTuple):
     y: np.array  # 1d
     ids: np.array  # 1d
 
-        
+
 class GenerationParams(NamedTuple):
     n_models: int  # = n datasets
     n_fits: int  # per each model during hyperparameter optimization
@@ -40,23 +40,23 @@ class GenerationParams(NamedTuple):
     train_probs: np.array
     valid_data: DataSet
     valid_index: np.array
-      
-    
+
+
 class FitResult(NamedTuple):
     train_index: np.array
     sample_scores: np.array
     model_score: float
     model_params: dict
-        
-        
+
+
 class GenerationResult(NamedTuple):
     train_probs: np.array
     train_index: np.array  # (n_samples), True for samples that were used in any of the models
     model_scores: np.array
     model_params: List[dict]
     model_samples: np.array  # (n_models, n_train_samples) - IDs, NOT INDEX
-    
-    
+
+
 class EvolutionParams(NamedTuple):
     n_models: int  # = datasets per generation
     n_fits: int  # per each model during hyperparameter optimization
@@ -83,11 +83,11 @@ def sample(n_samples: int, ids: np.array, weights: np.array=None) -> np.array:
 
 
 def fit_svr(
-        X_train: np.array, 
-        y_train: np.array, 
-        X_valid: np.array, 
-        y_valid: np.array, 
-        params_dict: dict=params_dict, 
+        X_train: np.array,
+        y_train: np.array,
+        X_valid: np.array,
+        y_valid: np.array,
+        params_dict: dict=params_dict,
         n_iter: int=25
 ):
     ps = ParameterSampler(n_iter=n_iter, param_distributions=params_dict)
@@ -101,14 +101,14 @@ def fit_svr(
     return models[np.argmax(scores)]
 
 
-def fit_model(params: GenerationParams) -> FitResult:
+def fit_thread(params: GenerationParams) -> FitResult:
     train_index = sample(
-        params.n_train_samples, 
-        params.train_data.ids, 
+        params.n_train_samples,
+        params.train_data.ids,
         params.train_probs
-    )
+    )  # TODO: Remove sampling from here and move to crossover_thread
     model = fit_svr(
-        params.train_data.X[train_index], 
+        params.train_data.X[train_index],
         params.train_data.y[train_index],
         params.valid_data.X[params.valid_index],
         params.valid_data.y[params.valid_index],
@@ -124,20 +124,26 @@ def fit_model(params: GenerationParams) -> FitResult:
     )
     return FitResult(train_index, sample_scores, model_score, model.get_params())
 
+def crossover_thread():
+    pass  # TODO: Crossing and mutation, (Type: [np.array, np.array] -> np.array) - ONLY OPERATE ON INDICES
+
 def run_generation(params: GenerationParams, n_models: int, pool: mp.Pool) -> Tuple[np.array, np.array, np.array, GenerationResult]:
     train_probs = np.zeros_like(params.train_probs)
     used_train_index = np.zeros_like(params.train_data.y, dtype=np.bool)
     model_params = list(repeat({}, params.n_models))
     model_scores = np.zeros(params.n_models)
     model_samples = np.zeros((params.n_models, params.n_train_samples))
-    results = pool.map(fit_model, repeat(params, n_models))
-#     results = map(fit_model, repeat(params, n_models))  # in case the Pool does not work in Jupyter
+    results = pool.map(fit_thread, repeat(params, n_models))
+#     results = map(fit_thread, repeat(params, n_models))  # in case the Pool does not work in Jupyter
     for idx, fit_result in enumerate(results):
         used_train_index |= fit_result.train_index
         train_probs += fit_result.sample_scores * np.exp(fit_result.model_score)
         model_params[idx] = fit_result.model_params
         model_scores[idx] = fit_result.model_score
         model_samples[idx] = params.train_data.ids[fit_result.train_index].astype(np.uint)
+    # TODO 1: Do the selection (by model fitness)
+    # TODO 2: Generate pairs of fit datasets and use the same pool for parallel crossing
+    # TODO 3: Return datasets for next generation, may need to change conents of GenerationResult
     return GenerationResult(train_probs, used_train_index, model_scores, model_params, model_samples)
 
 
@@ -175,7 +181,7 @@ def run_evolution(train_data: DataSet, valid_data: DataSet, pool: mp.Pool, param
 @click.command()
 @click.option("-n", "--n-threads", default=4)
 @click.option("-i", "--input-dir", type=str, default='../data')
-@click.option("-o", "--output-path", type=str, 
+@click.option("-o", "--output-path", type=str,
               default=datetime.now().strftime('../data/genetic-%d-%m-%y-%H-%M-%S.pkl'))
 def main(n_threads, input_dir, output_path):
     input_dir = Path(input_dir).resolve()

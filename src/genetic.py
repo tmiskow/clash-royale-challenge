@@ -42,7 +42,7 @@ class GenerationParams(NamedTuple):
     valid_data: DataSet
     valid_index: np.array
     mutation_prob: float
-
+    score_mode: str
 
 class FitParams(NamedTuple):
     train_index: np.array # 1d train_size
@@ -80,6 +80,7 @@ class EvolutionParams(NamedTuple):
     n_train_samples: int
     n_valid_samples: int
     mutation_prob: float  # between 0 and 1
+    score_mode: str
 
 
 # defaults for random hyperparameter search
@@ -118,11 +119,6 @@ def fit_svr(
 
 
 def fit_thread(params: GenerationParams) -> FitResult:
-    # train_index = sample(
-    #     params.n_train_samples,
-    #     params.train_data.ids,
-    #     params.train_probs
-    # )  # TODO: Remove sampling from here and move to crossover_thread
     model = fit_svr(
         params.train_data.X[params.train_index],
         params.train_data.y[params.train_index],
@@ -140,8 +136,6 @@ def fit_thread(params: GenerationParams) -> FitResult:
 
 def crossover_thread(params: MutationParams):
     intersection = np.intersect1d(params.pair[0], params.pair[1], assume_unique=True)
-    new_ids = None
-    # print(params.pair.shape, intersection.shape)
     rest = np.setxor1d(params.pair[0], params.pair[1])
     if all(p1 == p2 for p1, p2 in zip(params.pair[0], params.pair[1])) or  \
             (params.pair.shape[1] - intersection.shape[0]) < 0:
@@ -166,8 +160,6 @@ def crossover_thread(params: MutationParams):
     )
     result = np.concatenate([chosen, supplied])
     assert len(result) == params.pair.shape[1]
-    # index = np.zeros_like(params.train_probs).astype(np.bool)
-    # index[result.astype(np.int)] = True
     return result.astype(np.int)
 
 
@@ -180,10 +172,20 @@ def select_best(model_scores):
     return sorted_order[fit_scores]
 
 
-def calculate_probs(models_pred):
-    train_var = models_pred.var(axis=0)
-    assert len(train_var) == models_pred.shape[1]
-    exploded_scores = np.exp(train_var)
+def calculate_probs(models_pred: np.array, mode: str, y: np.array=None):
+    if mode == "variance":
+        train_var = models_pred.var(axis=0)
+        assert len(train_var) == models_pred.shape[1]
+        scores = train_var
+    elif mode == "loss":
+        if y is None:
+            raise AttributeError(f"y can't be None when using 'loss' mode")
+        loss = np.subtract(models_pred, y.reshape(1, -1))
+        scores = loss.mean(axis=0)
+    else:
+        raise AttributeError(f"No such method: {mode}")
+
+    exploded_scores = np.exp(scores)
 
     # zeroout prob of half of the worst data points
     sorted_order_ids = np.argsort(-exploded_scores)  # sort by DESCENDING SCORE
@@ -201,13 +203,6 @@ def run_generation(params: GenerationParams, pool: mp.Pool) -> (GenerationParams
     model_scores = np.zeros(params.n_models)
     model_samples = np.zeros((params.n_models, params.n_train_samples))
 
-    # print("Fitting...")
-    # print(params.train_ids.shape)
-    # for t in params.train_ids:
-    #     print(t)
-    #     print("One")
-    # print("End test")
-    # Prepare fit params for fitting
     fit_params = [FitParams(
         train_index=params.train_ids[i],
         n_fits=params.n_fits,
@@ -217,33 +212,19 @@ def run_generation(params: GenerationParams, pool: mp.Pool) -> (GenerationParams
     ) for i in range(len(params.train_ids))]
 
     results = pool.map(fit_thread, fit_params)
-#     results = map(fit_thread, repeat(params, n_models))  # in case the Pool does not work in Jupyter
-#     print("Synchronizing...")
     for idx, fit_result in enumerate(results):
         models_pred[idx] = fit_result.model_pred
         model_params[idx] = fit_result.model_params
         model_scores[idx] = fit_result.model_score
         model_samples[idx] = params.train_data.ids[fit_result.train_index].astype(np.uint)
 
-    # print("Selecting...")
-    # Do the selection (by model fitness)
     chosen_samples = model_samples[select_best(model_scores)]
-    # print(chosen_samples.mean())
-    # print(chosen_samples.shape)
-    # Generate pairs of fit datasets and use the same pool for parallel crossing
-    # print("Making pairs...")
     comb = np.random.randint(low=0, high=len(chosen_samples), size=(params.n_models, 2))
-    # print(comb)
     pairs = [chosen_samples[c] for c in comb]
-    # print(pairs)
-    # Calculate scores for train data
-    # print("Mutating...")
-    train_probs = calculate_probs(models_pred)
-    # print(train_probs.mean())
+    train_probs = calculate_probs(models_pred, mode=params.score_mode, y=params.train_data.y)
     crossover_param_list = [MutationParams(pair=p, train_probs=train_probs, mutation_prob=params.mutation_prob) for p in pairs]
     new_ids = pool.map(crossover_thread, crossover_param_list)
 
-    # print("?New", np.asarray(new_ids).shape)
     new_params = params._replace(train_ids=np.asarray(new_ids), train_probs=train_probs)
     return new_params, GenerationResult(train_probs, model_scores, model_params, model_samples)
 
@@ -257,7 +238,6 @@ def run_evolution(train_data: DataSet, valid_data: DataSet, pool: mp.Pool, param
         size=(params.n_models, params.n_train_samples),
         replace=False,
     )
-    # print("Traing indexes", train_ids)
 
     next_gen_params = GenerationParams(
         n_models=params.n_models,
@@ -269,6 +249,7 @@ def run_evolution(train_data: DataSet, valid_data: DataSet, pool: mp.Pool, param
         valid_index=valid_index,
         mutation_prob=params.mutation_prob,
         train_ids=train_ids,
+        score_mode=params.score_mode,
     )
 
     with trange(params.n_generations) as t:
@@ -303,7 +284,8 @@ def main(n_threads, input_dir, output_path):
         n_generations = 40,
         n_train_samples = 1500,
         n_valid_samples = 6000,
-        mutation_prob = 0.2
+        mutation_prob = 0.2,
+        score_mode = "variance",
     )
     with mp.Pool(n_threads) as pool:
         results = run_evolution(train_data, valid_data, pool, params)

@@ -180,7 +180,7 @@ def calculate_probs(models_pred: np.array, mode: str, y: np.array=None):
     elif mode == "loss":
         if y is None:
             raise AttributeError(f"y can't be None when using 'loss' mode")
-        loss = np.subtract(models_pred, y.reshape(1, -1))
+        loss = np.subtract(models_pred, y.reshape(1, -1)) ** 2
         scores = loss.mean(axis=0)
     else:
         raise AttributeError(f"No such method: {mode}")
@@ -289,7 +289,9 @@ def main(n_threads, input_dir, output_path):
     )
     with mp.Pool(n_threads) as pool:
         results = run_evolution(train_data, valid_data, pool, params)
+        print(f"Saving results to {output_path}...")
         pickle.dump(results, open(output_path, 'wb'))
+        print("Done")
 
 
 if __name__ == '__main__':

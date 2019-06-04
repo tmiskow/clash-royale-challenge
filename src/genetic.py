@@ -284,11 +284,11 @@ def main(n_threads, input_dir, output_path):
     valid_data = DataSet(valid_X, valid_y, np.arange(len(valid_X)) * (-1))
     params = EvolutionParams(
         n_models = 32,
-        n_fits = 24,
+        n_fits = 64,
         n_generations = 256,
         n_train_samples = 1500,
         n_valid_samples = 6000,
-        mutation_prob = 0.2,
+        mutation_prob = 0.04,
         score_mode = "loss",
     )
     with mp.Pool(n_threads) as pool:

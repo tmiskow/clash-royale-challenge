@@ -135,16 +135,13 @@ def fit_thread(params: GenerationParams) -> FitResult:
 
 
 def crossover_thread(params: MutationParams):
-    intersection = np.intersect1d(params.pair[0], params.pair[1], assume_unique=True)
+    intersection = np.intersect1d(params.pair[0], params.pair[1])
     rest = np.setxor1d(params.pair[0], params.pair[1])
-    if all(p1 == p2 for p1, p2 in zip(params.pair[0], params.pair[1])) or  \
-            (params.pair.shape[1] - intersection.shape[0]) < 0:
-        # intersect is not working properly for identical arrays(dont know why)
-        # sometimes intersection is larger then length of original list(dont know why)
-        new_ids = params.pair[0]
+    if len(rest) == 0:
+        new_ids = intersection
     else:
         other = np.random.choice(
-            rest, params.pair.shape[1] - intersection.shape[0]
+            rest, len(params.pair[0]) - len(intersection), replace=False,
         )
         new_ids = np.concatenate([intersection, other])
     assert len(new_ids) == len(params.pair[0])
@@ -152,11 +149,15 @@ def crossover_thread(params: MutationParams):
     np.random.shuffle(new_ids)
     survival_boundary = round(len(new_ids) * params.mutation_prob)
     chosen = new_ids[:-survival_boundary]
+    params.train_probs[chosen.astype(np.int)] = 0
+    assert params.train_probs[chosen.astype(np.int)].sum() == 0
+    adjusted_params = params.train_probs / params.train_probs.sum()
+    assert adjusted_params[chosen.astype(np.int)].sum() == 0
     supplied = np.random.choice(
         np.arange(len(params.train_probs)),
         size=survival_boundary,
         replace=False,
-        p=params.train_probs
+        p=adjusted_params
     )
     result = np.concatenate([chosen, supplied])
     assert len(result) == params.pair.shape[1]
@@ -283,8 +284,8 @@ def main(n_threads, input_dir, output_path):
     train_data = DataSet(train_X, train_y, np.arange(len(train_X)))
     valid_data = DataSet(valid_X, valid_y, np.arange(len(valid_X)) * (-1))
     params = EvolutionParams(
-        n_models = 32,
-        n_fits = 32,
+        n_models = 8,
+        n_fits = 20,
         n_generations = 256,
         n_train_samples = 1500,
         n_valid_samples = 6000,

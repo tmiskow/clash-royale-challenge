@@ -331,9 +331,9 @@ def main(n_threads, input_dir, output_path):
     # weights = weights / weights.max()
 
     params = EvolutionParams(
-        n_models = 24,
-        n_fits = 9,
-        n_generations = 60,
+        n_models = 32,
+        n_fits = 32,
+        n_generations = 256,
         n_train_samples = 1500,
         n_valid_samples = 6000,
         train_ids = None,

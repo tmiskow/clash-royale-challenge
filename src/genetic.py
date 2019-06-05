@@ -86,9 +86,9 @@ class EvolutionParams(NamedTuple):
 # defaults for random hyperparameter search
 params_dict = {
     'kernel': ['rbf'],
-    'gamma': [1 / i for i in range(80, 130, 10)],
+    'gamma': [1 / i for i in range(60, 130, 20)],
     'C': [0.9, 1.0, 1.1],
-    'epsilon': [1e-3, 3e-3, 1e-2, 3e-2, 1e-1, 3e-1],
+    'epsilon': [1e-2, 3e-2, 5e-2],
     'shrinking': [True]
 }
 
@@ -190,7 +190,7 @@ def calculate_probs(models_pred: np.array, mode: str, y: np.array=None):
     # zeroout prob of half of the worst data points
     sorted_order_ids = np.argsort(-exploded_scores)  # sort by DESCENDING SCORE
     cum_scores = np.cumsum(exploded_scores[sorted_order_ids])
-    unfit_index = cum_scores < 0.5
+    unfit_index = (cum_scores / cum_scores[-1]) < 0.5  # eliminate best half of scores
     exploded_scores[sorted_order_ids[unfit_index]] = 0
 
     normalized_scores = exploded_scores / exploded_scores.sum()
@@ -284,7 +284,7 @@ def main(n_threads, input_dir, output_path):
     valid_data = DataSet(valid_X, valid_y, np.arange(len(valid_X)) * (-1))
     params = EvolutionParams(
         n_models = 32,
-        n_fits = 64,
+        n_fits = 32,
         n_generations = 256,
         n_train_samples = 1500,
         n_valid_samples = 6000,

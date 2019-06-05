@@ -254,13 +254,17 @@ def run_evolution(train_data: DataSet, valid_data: DataSet, pool: mp.Pool, param
 
     with trange(params.n_generations) as t:
         for generation_idx in t:
-            t.set_description(f"Generation {generation_idx+1}")
-            next_gen_params, gen_results = run_generation(next_gen_params, pool)
-            results.append(gen_results)
-            t.set_postfix(
-                mean_score=sum(gen_results.model_scores)/len(gen_results.model_scores),
-                max_score=max(gen_results.model_scores)
-            )
+            try:
+                t.set_description(f"Generation {generation_idx+1}")
+                next_gen_params, gen_results = run_generation(next_gen_params, pool)
+                results.append(gen_results)
+                t.set_postfix(
+                    mean_score=sum(gen_results.model_scores)/len(gen_results.model_scores),
+                    max_score=max(gen_results.model_scores)
+                )
+            except KeyboardInterrupt:
+                print("KeyboardInterrupt: stopping evolution...")
+                break
     return results
 
 
@@ -279,13 +283,13 @@ def main(n_threads, input_dir, output_path):
     train_data = DataSet(train_X, train_y, np.arange(len(train_X)))
     valid_data = DataSet(valid_X, valid_y, np.arange(len(valid_X)) * (-1))
     params = EvolutionParams(
-        n_models = 20,
-        n_fits = 35,
-        n_generations = 40,
+        n_models = 32,
+        n_fits = 64,
+        n_generations = 256,
         n_train_samples = 1500,
         n_valid_samples = 6000,
-        mutation_prob = 0.2,
-        score_mode = "variance",
+        mutation_prob = 0.04,
+        score_mode = "loss",
     )
     with mp.Pool(n_threads) as pool:
         results = run_evolution(train_data, valid_data, pool, params)

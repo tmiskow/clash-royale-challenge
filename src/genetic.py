@@ -284,8 +284,8 @@ def main(n_threads, input_dir, output_path):
     train_data = DataSet(train_X, train_y, np.arange(len(train_X)))
     valid_data = DataSet(valid_X, valid_y, np.arange(len(valid_X)) * (-1))
     params = EvolutionParams(
-        n_models = 8,
-        n_fits = 20,
+        n_models = 32,
+        n_fits = 32,
         n_generations = 256,
         n_train_samples = 1500,
         n_valid_samples = 6000,

@@ -87,11 +87,16 @@ class EvolutionParams(NamedTuple):
 # defaults for random hyperparameter search
 params_dict = {
     'kernel': ['rbf'],
-    'gamma': [1 / i for i in range(60, 130, 20)],
+    'gamma': [1 / i for i in range(80, 130, 20)],
     'C': [0.9, 1.0, 1.1],
-    'epsilon': [1e-2, 3e-2, 5e-2],
+    'epsilon': [1e-2],
     'shrinking': [True]
 }
+
+weights = np.load("../data/train_nofGames.npy")
+weights = np.log(weights)
+assert weights.min() >= 1
+weights = weights / weights.max()
 
 
 def sample(n_samples: int, ids: np.array, weights: np.array=None) -> np.array:
@@ -175,10 +180,39 @@ def select_best(model_scores):
 
 
 def calculate_probs(models_pred: np.array, mode: str, y: np.array=None):
-    if mode == "variance":
+    if mode == "leave-std-variance":
+        train_var = models_pred.var(axis=0)
+        scores = train_var
+
+        # zeroout some probs
+        mean_score = scores.mean()
+        std_score = scores.std()
+        scores[np.abs(scores - mean_score) > std_score * 0.7] = 0
+
+        exploded_scores = np.exp(scores)
+        normalized_scores = exploded_scores / exploded_scores.sum()
+        return normalized_scores
+
+    elif mode == "weighted-variance":
+        train_var = models_pred.var(axis=0)
+        scores = train_var
+
+        exploded_scores = np.exp(scores) * weights
+
+        # zeroout prob of half of the samples that were predicted correctly
+        sorted_order_ids = np.argsort(exploded_scores)  # sort by ASCENDING SCORE
+        cum_scores = np.cumsum(exploded_scores[sorted_order_ids])
+        unfit_index = (cum_scores / cum_scores[-1]) < 0.5  # eliminate most accurately predicted samples
+        exploded_scores[sorted_order_ids[unfit_index]] = 0
+
+        normalized_scores = exploded_scores / exploded_scores.sum()
+        return normalized_scores
+
+    elif mode == "variance":
         train_var = models_pred.var(axis=0)
         assert len(train_var) == models_pred.shape[1]
         scores = train_var
+
     elif mode == "loss":
         if y is None:
             raise AttributeError(f"y can't be None when using 'loss' mode")
@@ -288,14 +322,14 @@ def main(n_threads, input_dir, output_path):
     train_data = DataSet(train_X, train_y, np.arange(len(train_X)))
     valid_data = DataSet(valid_X, valid_y, np.arange(len(valid_X)) * (-1))
     params = EvolutionParams(
-        n_models = 32,
-        n_fits = 32,
+        n_models = 16,
+        n_fits = 9,
         n_generations = 128,
         n_train_samples = 1500,
         n_valid_samples = 6000,
         train_ids = None,
         mutation_prob = 0.04,
-        score_mode = "variance",
+        score_mode = "weighted-variance",
     )
     with mp.Pool(n_threads) as pool:
         results = run_evolution(train_data, valid_data, pool, params)

@@ -43,6 +43,7 @@ class GenerationParams(NamedTuple):
     valid_index: np.array
     mutation_prob: float
     score_mode: str
+    weights: np.array
 
 class FitParams(NamedTuple):
     train_index: np.array # 1d train_size
@@ -82,6 +83,7 @@ class EvolutionParams(NamedTuple):
     train_ids: np.array
     mutation_prob: float  # between 0 and 1
     score_mode: str
+    weights: np.array
 
 
 # defaults for random hyperparameter search
@@ -92,11 +94,6 @@ params_dict = {
     'epsilon': [1e-2],
     'shrinking': [True]
 }
-
-weights = np.load("../data/train_nofGames.npy")
-weights = np.log(weights)
-assert weights.min() >= 1
-weights = weights / weights.max()
 
 
 def sample(n_samples: int, ids: np.array, weights: np.array=None) -> np.array:
@@ -179,7 +176,7 @@ def select_best(model_scores):
     return sorted_order[fit_scores]
 
 
-def calculate_probs(models_pred: np.array, mode: str, y: np.array=None):
+def calculate_probs(models_pred: np.array, mode: str, y: np.array=None, weights=None):
     if mode == "leave-std-variance":
         train_var = models_pred.var(axis=0)
         scores = train_var
@@ -257,7 +254,7 @@ def run_generation(params: GenerationParams, pool: mp.Pool) -> (GenerationParams
     chosen_samples = model_samples[select_best(model_scores)]
     comb = np.random.randint(low=0, high=len(chosen_samples), size=(params.n_models, 2))
     pairs = [chosen_samples[c] for c in comb]
-    train_probs = calculate_probs(models_pred, mode=params.score_mode, y=params.train_data.y)
+    train_probs = calculate_probs(models_pred, mode=params.score_mode, y=params.train_data.y, weights=params.weights)
     crossover_param_list = [MutationParams(pair=p, train_probs=train_probs, mutation_prob=params.mutation_prob) for p in pairs]
     new_ids = pool.map(crossover_thread, crossover_param_list)
 
@@ -289,6 +286,7 @@ def run_evolution(train_data: DataSet, valid_data: DataSet, pool: mp.Pool, param
         mutation_prob=params.mutation_prob,
         train_ids=train_ids,
         score_mode=params.score_mode,
+        weights=params.weights,
     )
 
     with trange(params.n_generations) as t:
@@ -321,6 +319,12 @@ def main(n_threads, input_dir, output_path):
     valid_y = np.load(input_dir / 'valid_y.npy')
     train_data = DataSet(train_X, train_y, np.arange(len(train_X)))
     valid_data = DataSet(valid_X, valid_y, np.arange(len(valid_X)) * (-1))
+
+    weights = np.load("../data/train_nofGames.npy")
+    weights = np.log(weights)
+    assert weights.min() >= 1
+    weights = weights / weights.max()
+
     params = EvolutionParams(
         n_models = 16,
         n_fits = 9,
@@ -330,6 +334,7 @@ def main(n_threads, input_dir, output_path):
         train_ids = None,
         mutation_prob = 0.04,
         score_mode = "weighted-variance",
+        weights = weights,
     )
     with mp.Pool(n_threads) as pool:
         results = run_evolution(train_data, valid_data, pool, params)

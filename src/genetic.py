@@ -177,6 +177,9 @@ def select_best(model_scores):
 
 
 def calculate_probs(models_pred: np.array, mode: str, y: np.array=None, weights=None):
+    if mode == "weights":
+        return weights
+
     if mode == "leave-std-variance":
         train_var = models_pred.var(axis=0)
         scores = train_var
@@ -321,19 +324,20 @@ def main(n_threads, input_dir, output_path):
     valid_data = DataSet(valid_X, valid_y, np.arange(len(valid_X)) * (-1))
 
     weights = np.load("../data/train_nofGames.npy")
-    weights = np.log(weights)
-    assert weights.min() >= 1
-    weights = weights / weights.max()
+    weights = weights / weights.sum()
+    # weights = np.log(weights)
+    # assert weights.min() >= 1
+    # weights = weights / weights.max()
 
     params = EvolutionParams(
-        n_models = 16,
+        n_models = 24,
         n_fits = 9,
         n_generations = 128,
         n_train_samples = 1500,
         n_valid_samples = 6000,
         train_ids = None,
         mutation_prob = 0.04,
-        score_mode = "weighted-variance",
+        score_mode = "weights",
         weights = weights,
     )
     with mp.Pool(n_threads) as pool:

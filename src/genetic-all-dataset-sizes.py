@@ -40,7 +40,7 @@ def prepare_submission(results, path):
 @click.option("-n", "--n-threads", default=4)
 @click.option("-i", "--input-dir", type=str, default='../data')
 @click.option("-o", "--output-path", type=str,
-              default=datetime.now().strftime('../data/genetic-%d-%m-%y-%H-%M-%S.pkl'))
+              default=datetime.now().strftime('../data/genetic-all-%d-%m-%y-%H-%M-%S.pkl'))
 @click.option("-s", "--submission-path", type=str,
               default=datetime.now().strftime('../data/sumbission-%d-%m-%y-%H-%M-%S.txt'))
 def main(
@@ -60,8 +60,8 @@ def main(
     valid_data = DataSet(valid_X, valid_y, np.arange(len(valid_X)) * (-1))
     params = EvolutionParams(
         n_models=32,
-        n_fits=12,
-        n_generations=48,
+        n_fits=8,
+        n_generations=16,
         n_train_samples=1500,
         n_valid_samples=6000,
         train_ids=None,

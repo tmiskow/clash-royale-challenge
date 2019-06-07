@@ -95,7 +95,8 @@ def main(
                 assert start_model_samples.shape == (final_model_samples.shape[0], dataset_size)
                 params = params._replace(n_train_samples=dataset_size, train_ids=start_model_samples)
                 results[dataset_size] = run_evolution(train_data, valid_data, pool, params)
-                final_model_samples = results[dataset_size][-1].model_samples
+                best_gen = np.argmax(np.asarray([gen.model_scores.mean() for gen in results[dataset_size]]))
+                final_model_samples = results[dataset_size][best_gen].model_samples
         print(f"Saving results to {output_path}...")
         pickle.dump(results, open(output_path, 'wb'))
         print(f"Saving sumbission to {submission_path}...")

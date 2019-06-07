@@ -226,7 +226,7 @@ def calculate_probs(models_pred: np.array, mode: str, y: np.array=None, weights=
     # zeroout prob of half of the samples that were predicted correctly
     sorted_order_ids = np.argsort(exploded_scores)  # sort by ASCENDING SCORE
     cum_scores = np.cumsum(exploded_scores[sorted_order_ids])
-    unfit_index = (cum_scores / cum_scores[-1]) < 0.5  # eliminate most accurately predicted samples
+    unfit_index = (cum_scores / cum_scores[-1]) < 0.9  # eliminate most accurately predicted samples
     exploded_scores[sorted_order_ids[unfit_index]] = 0
 
     normalized_scores = exploded_scores / exploded_scores.sum()
@@ -332,12 +332,12 @@ def main(n_threads, input_dir, output_path):
     params = EvolutionParams(
         n_models = 24,
         n_fits = 9,
-        n_generations = 128,
+        n_generations = 60,
         n_train_samples = 1500,
         n_valid_samples = 6000,
         train_ids = None,
         mutation_prob = 0.04,
-        score_mode = "weights",
+        score_mode = "variance",
         weights = weights,
     )
     with mp.Pool(n_threads) as pool:

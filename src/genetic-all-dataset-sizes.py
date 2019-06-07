@@ -83,7 +83,9 @@ def main(
     results = {}
     with open(input_file, 'rb') as file:
         results[1500] = pickle.load(file)
-        final_model_samples = results[1500][-1].model_samples
+
+    best_gen = np.argmax(np.asarray([gen.model_samples.mean() for gen in results[1500]]))
+    final_model_samples = results[1500][best_gen].model_samples
 
     with mp.Pool(n_threads) as pool:
         with trange(1400, 500, -100) as t:

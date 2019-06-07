@@ -89,7 +89,7 @@ params_dict = {
     'kernel': ['rbf'],
     'gamma': [1 / i for i in range(60, 130, 20)],
     'C': [0.9, 1.0, 1.1],
-    'epsilon': [1e-2, 3e-2, 5e-2],
+    'epsilon': [1e-2],
     'shrinking': [True]
 }
 

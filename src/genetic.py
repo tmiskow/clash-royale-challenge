@@ -295,7 +295,7 @@ def main(n_threads, input_dir, output_path):
         n_valid_samples = 6000,
         train_ids = None,
         mutation_prob = 0.04,
-        score_mode = "loss",
+        score_mode = "variance",
     )
     with mp.Pool(n_threads) as pool:
         results = run_evolution(train_data, valid_data, pool, params)

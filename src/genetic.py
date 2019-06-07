@@ -89,8 +89,8 @@ class EvolutionParams(NamedTuple):
 # defaults for random hyperparameter search
 params_dict = {
     'kernel': ['rbf'],
-    'gamma': [1 / i for i in range(80, 130, 20)],
-    'C': [0.9, 1.0, 1.1],
+    'gamma': [1 / i for i in range(60, 130, 20)],
+    'C': [1.0],
     'epsilon': [1e-2],
     'shrinking': [True]
 }

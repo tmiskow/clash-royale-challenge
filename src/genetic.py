@@ -286,11 +286,11 @@ def main(n_threads, input_dir, output_path):
     params = EvolutionParams(
         n_models = 32,
         n_fits = 32,
-        n_generations = 256,
+        n_generations = 128,
         n_train_samples = 1500,
         n_valid_samples = 6000,
         mutation_prob = 0.04,
-        score_mode = "variance",
+        score_mode = "loss",
     )
     with mp.Pool(n_threads) as pool:
         results = run_evolution(train_data, valid_data, pool, params)

@@ -79,6 +79,7 @@ class EvolutionParams(NamedTuple):
     n_generations: int
     n_train_samples: int
     n_valid_samples: int
+    train_ids: np.array
     mutation_prob: float  # between 0 and 1
     score_mode: str
 
@@ -234,11 +235,14 @@ def run_evolution(train_data: DataSet, valid_data: DataSet, pool: mp.Pool, param
     valid_index = sample(params.n_valid_samples, valid_data.ids)
     train_probs = np.ones(len(train_data.ids)) / len(train_data.ids)
     results = []
-    train_ids = np.random.choice(
-        train_data.ids,
-        size=(params.n_models, params.n_train_samples),
-        replace=False,
-    )
+    if params.train_ids is None:
+        train_ids = np.random.choice(
+            train_data.ids,
+            size=(params.n_models, params.n_train_samples),
+            replace=False,
+        )
+    else:
+        train_ids = params.train_ids
 
     next_gen_params = GenerationParams(
         n_models=params.n_models,
@@ -289,6 +293,7 @@ def main(n_threads, input_dir, output_path):
         n_generations = 256,
         n_train_samples = 1500,
         n_valid_samples = 6000,
+        train_ids = None,
         mutation_prob = 0.04,
         score_mode = "variance",
     )

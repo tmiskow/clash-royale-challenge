@@ -40,7 +40,7 @@ def prepare_submission(results, path):
 @click.option("-n", "--n-threads", default=4)
 @click.option("-i", "--input-dir", type=str, default='../data')
 @click.option("-o", "--output-path", type=str,
-              default=datetime.now().strftime('../data/genetic-all-%d-%m-%y-%H-%M-%S.pkl'))
+              default=datetime.now().strftime('../data/genetic-%d-%m-%y-%H-%M-%S.pkl'))
 @click.option("-s", "--submission-path", type=str,
               default=datetime.now().strftime('../data/sumbission-%d-%m-%y-%H-%M-%S.txt'))
 def main(
@@ -60,8 +60,8 @@ def main(
     valid_data = DataSet(valid_X, valid_y, np.arange(len(valid_X)) * (-1))
     params = EvolutionParams(
         n_models=32,
-        n_fits=8,
-        n_generations=16,
+        n_fits=1,
+        n_generations=1,
         n_train_samples=1500,
         n_valid_samples=6000,
         train_ids=None,
@@ -72,10 +72,7 @@ def main(
     results = {}
     with open(input_file, 'rb') as file:
         results[1500] = pickle.load(file)
-
-    best_gen = np.argmax(np.asarray([gen.model_scores.mean() for gen in results[1500]]))
-    final_model_samples = results[1500][best_gen].model_samples
-    print(f"Using generation number {best_gen} as best generation")
+        final_model_samples = results[1500][-1].model_samples
 
     with mp.Pool(n_threads) as pool:
         with trange(1400, 500, -100) as t:
@@ -85,8 +82,7 @@ def main(
                 assert start_model_samples.shape == (final_model_samples.shape[0], dataset_size)
                 params = params._replace(n_train_samples=dataset_size, train_ids=start_model_samples)
                 results[dataset_size] = run_evolution(train_data, valid_data, pool, params)
-                best_gen = np.argmax(np.asarray([gen.model_scores.mean() for gen in results[dataset_size]]))
-                final_model_samples = results[dataset_size][best_gen].model_samples
+                final_model_samples = results[dataset_size][-1].model_samples
         print(f"Saving results to {output_path}...")
         pickle.dump(results, open(output_path, 'wb'))
         print(f"Saving sumbission to {submission_path}...")

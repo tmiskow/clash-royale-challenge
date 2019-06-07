@@ -188,10 +188,10 @@ def calculate_probs(models_pred: np.array, mode: str, y: np.array=None):
 
     exploded_scores = np.exp(scores)
 
-    # zeroout prob of half of the worst data points
-    sorted_order_ids = np.argsort(-exploded_scores)  # sort by DESCENDING SCORE
+    # zeroout prob of half of the samples that were predicted correctly
+    sorted_order_ids = np.argsort(exploded_scores)  # sort by ASCENDING SCORE
     cum_scores = np.cumsum(exploded_scores[sorted_order_ids])
-    unfit_index = (cum_scores / cum_scores[-1]) < 0.5  # eliminate best half of scores
+    unfit_index = (cum_scores / cum_scores[-1]) < 0.5  # eliminate most accurately predicted samples
     exploded_scores[sorted_order_ids[unfit_index]] = 0
 
     normalized_scores = exploded_scores / exploded_scores.sum()

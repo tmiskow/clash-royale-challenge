@@ -8,7 +8,7 @@ from tqdm import trange
 import click
 import numpy as np
 
-from genetic import GenerationResult, DataSet, EvolutionParams, run_evolution
+from genetic import GenerationResult, DataSet, EvolutionParams, run_evolution, fit_svr
 
 np.random.seed(420)
 
@@ -58,7 +58,7 @@ def main(
     valid_data = DataSet(valid_X, valid_y, np.arange(len(valid_X)) * (-1))
     params = EvolutionParams(
         n_models=8,
-        n_fits=9,
+        n_fits=4,
         n_generations=48,
         n_train_samples=1500,
         n_valid_samples=6000,
@@ -70,11 +70,11 @@ def main(
     results = {}
 
     print("Fitting the model on validation data...")
-    model = fit_svr(valid_X, valid_y, train_X, train_y)
+    model = fit_svr(valid_X, valid_y, train_X, train_y, n_iter=params.n_fits)
     y_pred = model.predict(train_X)
     mse = (y_pred-train_y)**2
-    best_index = np.argsort(mse)[:2000]
-    final_model_samples = [train_X[best_index] for _ in range(params.n_models)]
+    best_samples = np.argsort(mse)[:2000]
+    final_model_samples = np.array([best_samples for _ in range(params.n_models)])
 
     with mp.Pool(n_threads) as pool:
         with trange(1500, 500, -100) as t:

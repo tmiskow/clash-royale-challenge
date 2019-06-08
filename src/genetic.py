@@ -276,7 +276,6 @@ def resample_validation(train_data:DataSet, valid_data: DataSet, train_for_valid
         y=np.concatenate([valid_data.y, train_data.y[chosen_ids]]),
         ids=np.arange(len(valid_data.y) + len(chosen_ids))
     )
-
     valid_index = sample(n_valid_samples, valid_data.ids)
     return new_valid, valid_index
 
@@ -300,6 +299,7 @@ def run_evolution(train_data: DataSet, valid_data: DataSet, pool: mp.Pool, param
     else:
         train_ids = params.train_ids
 
+    new_valid_data, valid_index = resample_validation(train_data, valid_data, train_for_validation_ids, params.n_valid_samples)
     next_gen_params = GenerationParams(
         n_models=params.n_models,
         n_fits=params.n_fits,
@@ -343,8 +343,8 @@ def main(n_threads, input_dir, output_path):
     output_path = Path(output_path).resolve()
     train_X = np.load(input_dir / 'train_X.npy')
     train_y = np.load(input_dir / 'train_y.npy')
-    valid_X = np.load(input_dir / 'valid_mix_X.npy')
-    valid_y = np.load(input_dir / 'valid_mix_y.npy')
+    valid_X = np.load(input_dir / 'reduced_valid_X.npy')
+    valid_y = np.load(input_dir / 'reduced_valid_y.npy')
     train_data = DataSet(train_X, train_y, np.arange(len(train_X)))
     valid_data = DataSet(valid_X, valid_y, np.arange(len(valid_X)) * (-1))
 
@@ -355,14 +355,14 @@ def main(n_threads, input_dir, output_path):
     params = EvolutionParams(
         n_models = 32,
         n_fits = 9,
-        n_generations = 256,
+        n_generations = 512,
         n_train_samples = 1500,
-        n_valid_samples = 6000,
+        n_valid_samples = 4000,
         train_ids = None,
         mutation_prob = 0.04,
         score_mode = "weights",
         weights = weights,
-        validation_mode="original",
+        validation_mode="upsampling",
     )
     with mp.Pool(n_threads) as pool:
         results = run_evolution(train_data, valid_data, pool, params)

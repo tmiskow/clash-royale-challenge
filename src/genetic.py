@@ -1,5 +1,6 @@
 """
-Fast, parallelizable genetic algorithm implementation with some shortcuts.
+1st script in the pipeline, generating the largest dataset.
+Fast, parallelizable genetic algorithm implementation with some extensions.
 
 Numpy array naming convention:
 - *_ids = array of number corresponding to rows in the dataset
@@ -91,7 +92,7 @@ class EvolutionParams(NamedTuple):
 params_dict = {
     'kernel': ['rbf'],
     'gamma': [1 / i for i in range(80, 130, 20)],
-    'C': [0.9, 1.0, 1.1],
+    'C': [1e0, 1e1, 1e2, 1e3],
     'epsilon': [1e-2],
     'shrinking': [True]
 }
@@ -347,14 +348,14 @@ def main(n_threads, input_dir, output_path):
     train_data = DataSet(train_X, train_y, np.arange(len(train_X)))
     valid_data = DataSet(valid_X, valid_y, np.arange(len(valid_X)) * (-1))
 
-    weights = np.load("../data/train_nofGames.npy")
+    weights = np.load(input_dir / 'train_nofGames.npy')
     weights[weights < weights.mean()] = 0
     weights = weights / weights.sum()
 
     params = EvolutionParams(
-        n_models = 24,
+        n_models = 32,
         n_fits = 9,
-        n_generations = 60,
+        n_generations = 128,
         n_train_samples = 1500,
         n_valid_samples = 6000,
         train_ids = None,

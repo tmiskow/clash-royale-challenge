@@ -343,8 +343,8 @@ def main(n_threads, input_dir, output_path):
     output_path = Path(output_path).resolve()
     train_X = np.load(input_dir / 'train_X.npy')
     train_y = np.load(input_dir / 'train_y.npy')
-    valid_X = np.load(input_dir / 'valid_X.npy')
-    valid_y = np.load(input_dir / 'valid_y.npy')
+    valid_X = np.load(input_dir / 'valid_mix_X.npy')
+    valid_y = np.load(input_dir / 'valid_mix_y.npy')
     train_data = DataSet(train_X, train_y, np.arange(len(train_X)))
     valid_data = DataSet(valid_X, valid_y, np.arange(len(valid_X)) * (-1))
 
@@ -355,7 +355,7 @@ def main(n_threads, input_dir, output_path):
     params = EvolutionParams(
         n_models = 32,
         n_fits = 9,
-        n_generations = 128,
+        n_generations = 256,
         n_train_samples = 1500,
         n_valid_samples = 6000,
         train_ids = None,

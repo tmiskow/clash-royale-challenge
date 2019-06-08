@@ -43,6 +43,7 @@ class GenerationParams(NamedTuple):
     valid_index: np.array
     mutation_prob: float
     score_mode: str
+    weights: np.array
 
 class FitParams(NamedTuple):
     train_index: np.array # 1d train_size
@@ -82,12 +83,13 @@ class EvolutionParams(NamedTuple):
     train_ids: np.array
     mutation_prob: float  # between 0 and 1
     score_mode: str
+    weights: np.array
 
 
 # defaults for random hyperparameter search
 params_dict = {
     'kernel': ['rbf'],
-    'gamma': [1 / i for i in range(60, 130, 20)],
+    'gamma': [1 / i for i in range(80, 130, 20)],
     'C': [0.9, 1.0, 1.1],
     'epsilon': [1e-2],
     'shrinking': [True]
@@ -174,11 +176,43 @@ def select_best(model_scores):
     return sorted_order[fit_scores]
 
 
-def calculate_probs(models_pred: np.array, mode: str, y: np.array=None):
-    if mode == "variance":
+def calculate_probs(models_pred: np.array, mode: str, y: np.array=None, weights=None):
+    if mode == "weights":
+        return weights
+
+    elif mode == "leave-std-variance":
+        train_var = models_pred.var(axis=0)
+        scores = train_var
+
+        # zeroout some probs
+        mean_score = scores.mean()
+        std_score = scores.std()
+        scores[np.abs(scores - mean_score) > std_score * 0.7] = 0
+
+        exploded_scores = np.exp(scores)
+        normalized_scores = exploded_scores / exploded_scores.sum()
+        return normalized_scores
+
+    elif mode == "weighted-variance":
+        train_var = models_pred.var(axis=0)
+        scores = train_var
+
+        exploded_scores = np.exp(scores) * weights
+
+        # zeroout prob of half of the samples that were predicted correctly
+        sorted_order_ids = np.argsort(exploded_scores)  # sort by ASCENDING SCORE
+        cum_scores = np.cumsum(exploded_scores[sorted_order_ids])
+        unfit_index = (cum_scores / cum_scores[-1]) < 0.5  # eliminate most accurately predicted samples
+        exploded_scores[sorted_order_ids[unfit_index]] = 0
+
+        normalized_scores = exploded_scores / exploded_scores.sum()
+        return normalized_scores
+
+    elif mode == "variance":
         train_var = models_pred.var(axis=0)
         assert len(train_var) == models_pred.shape[1]
         scores = train_var
+
     elif mode == "loss":
         if y is None:
             raise AttributeError(f"y can't be None when using 'loss' mode")
@@ -192,7 +226,7 @@ def calculate_probs(models_pred: np.array, mode: str, y: np.array=None):
     # zeroout prob of half of the samples that were predicted correctly
     sorted_order_ids = np.argsort(exploded_scores)  # sort by ASCENDING SCORE
     cum_scores = np.cumsum(exploded_scores[sorted_order_ids])
-    unfit_index = (cum_scores / cum_scores[-1]) < 0.5  # eliminate most accurately predicted samples
+    unfit_index = (cum_scores / cum_scores[-1]) < 0.9  # eliminate most accurately predicted samples
     exploded_scores[sorted_order_ids[unfit_index]] = 0
 
     normalized_scores = exploded_scores / exploded_scores.sum()
@@ -223,7 +257,7 @@ def run_generation(params: GenerationParams, pool: mp.Pool) -> (GenerationParams
     chosen_samples = model_samples[select_best(model_scores)]
     comb = np.random.randint(low=0, high=len(chosen_samples), size=(params.n_models, 2))
     pairs = [chosen_samples[c] for c in comb]
-    train_probs = calculate_probs(models_pred, mode=params.score_mode, y=params.train_data.y)
+    train_probs = calculate_probs(models_pred, mode=params.score_mode, y=params.train_data.y, weights=params.weights)
     crossover_param_list = [MutationParams(pair=p, train_probs=train_probs, mutation_prob=params.mutation_prob) for p in pairs]
     new_ids = pool.map(crossover_thread, crossover_param_list)
 
@@ -255,6 +289,7 @@ def run_evolution(train_data: DataSet, valid_data: DataSet, pool: mp.Pool, param
         mutation_prob=params.mutation_prob,
         train_ids=train_ids,
         score_mode=params.score_mode,
+        weights=params.weights,
     )
 
     with trange(params.n_generations) as t:
@@ -287,15 +322,24 @@ def main(n_threads, input_dir, output_path):
     valid_y = np.load(input_dir / 'valid_y.npy')
     train_data = DataSet(train_X, train_y, np.arange(len(train_X)))
     valid_data = DataSet(valid_X, valid_y, np.arange(len(valid_X)) * (-1))
+
+    weights = np.load("../data/train_nofGames.npy")
+    weights[weights < weights.mean()] = 0
+    weights = weights / weights.sum()
+    # weights = np.log(weights)
+    # assert weights.min() >= 1
+    # weights = weights / weights.max()
+
     params = EvolutionParams(
-        n_models = 32,
-        n_fits = 32,
-        n_generations = 128,
+        n_models = 24,
+        n_fits = 9,
+        n_generations = 60,
         n_train_samples = 1500,
         n_valid_samples = 6000,
         train_ids = None,
         mutation_prob = 0.04,
-        score_mode = "variance",
+        score_mode = "weights",
+        weights = weights,
     )
     with mp.Pool(n_threads) as pool:
         results = run_evolution(train_data, valid_data, pool, params)

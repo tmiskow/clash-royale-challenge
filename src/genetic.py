@@ -84,6 +84,7 @@ class EvolutionParams(NamedTuple):
     mutation_prob: float  # between 0 and 1
     score_mode: str
     weights: np.array
+    validation_mode: str
 
 
 # defaults for random hyperparameter search
@@ -265,8 +266,28 @@ def run_generation(params: GenerationParams, pool: mp.Pool) -> (GenerationParams
     return new_params, GenerationResult(train_probs, model_scores, model_params, model_samples)
 
 
+def resample_validation(train_data:DataSet, valid_data: DataSet, train_for_validation_ids: np.array, n_valid_samples: int):
+    chosen_index = sample(len(valid_data.y), train_for_validation_ids)
+    chosen_ids = train_for_validation_ids[chosen_index]
+
+    new_valid = DataSet(
+        X=np.concatenate([valid_data.X, train_data.X[chosen_ids]]),
+        y=np.concatenate([valid_data.y, train_data.y[chosen_ids]]),
+        ids=np.arange(len(valid_data.y) + len(chosen_ids))
+    )
+
+    valid_index = sample(n_valid_samples, valid_data.ids)
+    return new_valid, valid_index
+
+
 def run_evolution(train_data: DataSet, valid_data: DataSet, pool: mp.Pool, params: EvolutionParams):
-    valid_index = sample(params.n_valid_samples, valid_data.ids)
+    if params.validation_mode == "original":
+        valid_index = sample(params.n_valid_samples, valid_data.ids)
+    elif params.validation_mode == "upsampling":
+        train_for_validation_ids = train_data.ids[params.weights > params.weights.mean()]
+    else:
+        raise AttributeError(f"Validation mode {params.validation_mode} does not exists")
+
     train_probs = np.ones(len(train_data.ids)) / len(train_data.ids)
     results = []
     if params.train_ids is None:
@@ -296,6 +317,9 @@ def run_evolution(train_data: DataSet, valid_data: DataSet, pool: mp.Pool, param
         for generation_idx in t:
             try:
                 t.set_description(f"Generation {generation_idx+1}")
+                if params.validation_mode == "upsampling":
+                    new_valid_data, valid_index = resample_validation(train_data, valid_data, train_for_validation_ids, params.n_valid_samples)
+                    next_gen_params._replace(valid_data=new_valid_data, valid_index=valid_index)
                 next_gen_params, gen_results = run_generation(next_gen_params, pool)
                 results.append(gen_results)
                 t.set_postfix(
@@ -326,9 +350,6 @@ def main(n_threads, input_dir, output_path):
     weights = np.load("../data/train_nofGames.npy")
     weights[weights < weights.mean()] = 0
     weights = weights / weights.sum()
-    # weights = np.log(weights)
-    # assert weights.min() >= 1
-    # weights = weights / weights.max()
 
     params = EvolutionParams(
         n_models = 24,
@@ -340,6 +361,7 @@ def main(n_threads, input_dir, output_path):
         mutation_prob = 0.04,
         score_mode = "weights",
         weights = weights,
+        validation_mode="original",
     )
     with mp.Pool(n_threads) as pool:
         results = run_evolution(train_data, valid_data, pool, params)

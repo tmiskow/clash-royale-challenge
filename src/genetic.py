@@ -90,7 +90,7 @@ class EvolutionParams(NamedTuple):
 params_dict = {
     'kernel': ['rbf'],
     'gamma': [1 / i for i in range(60, 130, 20)],
-    'C': [1.0],
+    'C': [1e0, 1e2, 1e4, 1e8],
     'epsilon': [1e-2],
     'shrinking': [True]
 }
@@ -332,13 +332,13 @@ def main(n_threads, input_dir, output_path):
 
     params = EvolutionParams(
         n_models = 32,
-        n_fits = 32,
+        n_fits = 12,
         n_generations = 128,
         n_train_samples = 1500,
         n_valid_samples = 6000,
         train_ids = None,
         mutation_prob = 0.04,
-        score_mode = "variance",
+        score_mode = "weights",
     )
     with mp.Pool(n_threads) as pool:
         results = run_evolution(train_data, valid_data, pool, params)

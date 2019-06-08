@@ -86,7 +86,7 @@ def main(
     valid_data = DataSet(valid_X, valid_y, np.arange(len(valid_X)) * (-1))
     params = EvolutionParams(
         n_models=32,
-        n_fits=4,
+        n_fits=12,
         n_generations=64,
         n_train_samples=1500,
         n_valid_samples=6000,

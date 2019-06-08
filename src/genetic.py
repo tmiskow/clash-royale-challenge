@@ -180,7 +180,7 @@ def calculate_probs(models_pred: np.array, mode: str, y: np.array=None, weights=
     if mode == "weights":
         return weights
 
-    if mode == "leave-std-variance":
+    elif mode == "leave-std-variance":
         train_var = models_pred.var(axis=0)
         scores = train_var
 
@@ -324,6 +324,7 @@ def main(n_threads, input_dir, output_path):
     valid_data = DataSet(valid_X, valid_y, np.arange(len(valid_X)) * (-1))
 
     weights = np.load("../data/train_nofGames.npy")
+    weights[weights < weights.mean()] = 0
     weights = weights / weights.sum()
     # weights = np.log(weights)
     # assert weights.min() >= 1
@@ -337,7 +338,7 @@ def main(n_threads, input_dir, output_path):
         n_valid_samples = 6000,
         train_ids = None,
         mutation_prob = 0.04,
-        score_mode = "variance",
+        score_mode = "weights",
         weights = weights,
     )
     with mp.Pool(n_threads) as pool:

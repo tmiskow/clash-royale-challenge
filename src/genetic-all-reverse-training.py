@@ -3,7 +3,7 @@ import multiprocessing as mp
 from pathlib import Path
 from datetime import datetime
 from typing import NamedTuple, List
-from functools import partial
+from itertools import repeat
 
 from tqdm import trange
 import click
@@ -20,6 +20,8 @@ def best_matching_samples(
         train_y: np.array,
         valid_X: np.array,
         valid_y: np.array,
+        sample_ids: np.array,
+        weights: np.array,
         n_iter: int,
         n_samples: int=1600,
         n_reverse_train_samples: int=2000
@@ -28,17 +30,47 @@ def best_matching_samples(
     Returns ids of n_samples that are most accurately predicted
     by SVR fitted on validation subset of n_reverse_train_samples.
     """
+    train_ids = np.random.choice(
+        sample_ids,
+        size=(3* n_reverse_train_samples),
+        replace=False,
+        p=weights
+    )
     Xrev_train, Xrev_test, yrev_train, yrev_test = train_test_split(
         valid_X, valid_y, train_size=n_reverse_train_samples
     )
-    # evaluate model on a subset of validation set + the full training set
-    X_full_test = np.vstack(train_X, Xrev_test)
-    y_full_test = np.vstack(train_y, yrev_test)
+    # evaluate model on a subset of validation set + the some samples from the training set
+    X_full_test = np.vstack((train_X[train_ids], Xrev_test))
+    y_full_test = np.concatenate((train_y[train_ids], yrev_test))
     model = fit_svr(Xrev_train, yrev_train, X_full_test, y_full_test, n_iter=n_iter)
     y_pred = model.predict(train_X)
     mse = (y_pred-train_y)**2
     best_samples = np.argsort(mse)[:n_samples]
     return best_samples
+
+
+class ReverseMatchingParams(NamedTuple):
+    train_data: DataSet
+    valid_data: DataSet
+    evolution_params: EvolutionParams
+    n_samples: int
+    n_reverse_train_samples: int
+
+
+def best_matching_thread(
+        params: ReverseMatchingParams
+) -> np.array:
+    return best_matching_samples(
+        params.train_data.X,
+        params.train_data.y,
+        params.valid_data.X,
+        params.valid_data.y,
+        params.train_data.ids,
+        params.evolution_params.weights,
+        n_iter = params.evolution_params.n_fits,
+        n_samples = params.n_samples,
+        n_reverse_train_samples = params.n_reverse_train_samples
+    )
 
 
 def shrink_samples(samples: np.array, size: int) -> np.array:
@@ -84,6 +116,9 @@ def main(
     valid_y = np.load(input_dir / 'valid_y.npy')
     train_data = DataSet(train_X, train_y, np.arange(len(train_X)))
     valid_data = DataSet(valid_X, valid_y, np.arange(len(valid_X)) * (-1))
+    weights = np.load(input_dir / 'train_nofGames.npy')
+    weights[weights < weights.mean()] = 0
+    weights = weights / weights.sum()
     params = EvolutionParams(
         n_models=32,
         n_fits=12,
@@ -92,25 +127,23 @@ def main(
         n_valid_samples=6000,
         train_ids=None,
         mutation_prob=0.4,
-        score_mode="variance",
+        score_mode="weights",
+        weights=weights,
+    )
+    rmp = ReverseMatchingParams(
+        train_data,
+        valid_data,
+        params,
+        n_samples=1600,
+        n_reverse_train_samples=2000
     )
 
     results = {}
     with mp.Pool(n_threads) as pool:
         print("Fitting models on validation data...")
-        bound_select_best_samples = partial(
-            best_matching_samples,
-            train_X,
-            train_y,
-            valid_X,
-            valid_y,
-            n_iter = params.n_fits,
-            n_samples = 1600,
-            n_reverse_train_samples = 2000
-        )
         final_model_samples = np.array(pool.map(
-            lambda _: bound_select_best_samples,
-            range(params.n_models)
+            best_matching_thread,
+            repeat(rmp, params.n_models)
         ))
 
         with trange(1500, 500, -100) as t:

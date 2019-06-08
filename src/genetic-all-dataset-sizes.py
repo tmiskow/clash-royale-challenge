@@ -58,15 +58,21 @@ def main(
     valid_y = np.load(input_dir / 'valid_y.npy')
     train_data = DataSet(train_X, train_y, np.arange(len(train_X)))
     valid_data = DataSet(valid_X, valid_y, np.arange(len(valid_X)) * (-1))
+    
+    weights = np.load("../data/train_nofGames.npy")
+    weights[weights < weights.mean()] = 0
+    weights = weights / weights.sum()
+    
     params = EvolutionParams(
-        n_models=32,
-        n_fits=8,
+        n_models=24,
+        n_fits=12,
         n_generations=16,
         n_train_samples=1500,
         n_valid_samples=6000,
         train_ids=None,
         mutation_prob=0.04,
-        score_mode="variance",
+        score_mode="weights",
+        weights = weights,
     )
 
     results = {}

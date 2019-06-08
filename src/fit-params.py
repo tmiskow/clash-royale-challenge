@@ -178,8 +178,8 @@ def load_data(input_dir: str):
     input_dir = Path(input_dir).resolve()
     train_X = np.load(input_dir / 'train_X.npy')
     train_y = np.load(input_dir / 'train_y.npy')
-    valid_X = np.load(input_dir / 'valid_X.npy')
-    valid_y = np.load(input_dir / 'valid_y.npy')
+    valid_X = np.load(input_dir / 'valid_mix_X.npy')
+    valid_y = np.load(input_dir / 'valid_mix_y.npy')
     train_data = DataSet(train_X, train_y, np.arange(len(train_X)))
     valid_data = DataSet(valid_X, valid_y, np.arange(len(valid_X)) * (-1))
     return train_data, valid_data

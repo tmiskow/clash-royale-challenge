@@ -32,7 +32,7 @@ def best_matching_samples(
     """
     train_ids = np.random.choice(
         sample_ids,
-        size=(3* n_reverse_train_samples),
+        size=(2* n_reverse_train_samples),
         replace=False,
         p=weights
     )
@@ -120,15 +120,16 @@ def main(
     weights[weights < weights.mean()] = 0
     weights = weights / weights.sum()
     params = EvolutionParams(
-        n_models=24,
+        n_models=12,
         n_fits=9,
-        n_generations=48,
+        n_generations=32,
         n_train_samples=1500,
         n_valid_samples=6000,
         train_ids=None,
         mutation_prob=0.08,
         score_mode="weights",
         weights=weights,
+        validation_mode="original"
     )
     rmp = ReverseMatchingParams(
         train_data,

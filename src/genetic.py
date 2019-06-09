@@ -45,6 +45,7 @@ class GenerationParams(NamedTuple):
     mutation_prob: float
     score_mode: str
     weights: np.array
+    regularize: bool  # if True, r2 score will have added penalty for samples deviating from baseline submission
 
 class FitParams(NamedTuple):
     train_index: np.array # 1d train_size
@@ -52,6 +53,8 @@ class FitParams(NamedTuple):
     train_data: DataSet
     valid_data: DataSet
     valid_index: np.array
+    weights: np.array
+    regularize: bool  # if True, r2 score will have added penalty for samples deviating from baseline submission
 
 
 class FitResult(NamedTuple):
@@ -86,6 +89,7 @@ class EvolutionParams(NamedTuple):
     score_mode: str
     weights: np.array
     validation_mode: str
+    regularize: bool  # if True, r2 score will have added penalty for samples deviating from baseline submission
 
 
 # defaults for random hyperparameter search
@@ -123,7 +127,7 @@ def fit_svr(
     return models[np.argmax(scores)]
 
 
-def fit_thread(params: GenerationParams) -> FitResult:
+def fit_thread(params: FitParams) -> FitResult:
     model = fit_svr(
         params.train_data.X[params.train_index],
         params.train_data.y[params.train_index],
@@ -136,6 +140,17 @@ def fit_thread(params: GenerationParams) -> FitResult:
         params.valid_data.y[params.valid_index],
         model.predict(params.valid_data.X[params.valid_index])
     )
+    if params.regularize:
+        assert(len(params.weights == len(params.train_data.ids)))
+        baseline_ids = params.train_data.ids[
+            np.argsort(params.weights)[-sum(params.train_index):]
+        ]
+        intersection = np.intersect1d(
+            baseline_ids,
+            params.train_data.ids[params.train_index],
+            assume_unique = True
+        )
+        model_score += len(intersection) / len(baseline_ids)
     return FitResult(params.train_index, model_pred, model_score, model.get_params())
 
 
@@ -247,6 +262,8 @@ def run_generation(params: GenerationParams, pool: mp.Pool) -> (GenerationParams
         train_data=params.train_data,
         valid_data=params.valid_data,
         valid_index=params.valid_index,
+        weights=params.weights,
+        regularize=params.regularize
     ) for i in range(len(params.train_ids))]
 
     results = pool.map(fit_thread, fit_params)
@@ -291,10 +308,12 @@ def run_evolution(train_data: DataSet, valid_data: DataSet, pool: mp.Pool, param
     train_probs = np.ones(len(train_data.ids)) / len(train_data.ids)
     results = []
     if params.train_ids is None:
+        assert(len(params.weights) == len(train_data.ids))
         train_ids = np.random.choice(
             train_data.ids,
             size=(params.n_models, params.n_train_samples),
             replace=False,
+            p=params.weights
         )
     else:
         train_ids = params.train_ids
@@ -312,6 +331,7 @@ def run_evolution(train_data: DataSet, valid_data: DataSet, pool: mp.Pool, param
         train_ids=train_ids,
         score_mode=params.score_mode,
         weights=params.weights,
+        regularize=params.regularize
     )
 
     with trange(params.n_generations) as t:
@@ -348,21 +368,23 @@ def main(n_threads, input_dir, output_path):
     train_data = DataSet(train_X, train_y, np.arange(len(train_X)))
     valid_data = DataSet(valid_X, valid_y, np.arange(len(valid_X)) * (-1))
 
-    weights = np.load(input_dir / 'train_nofGames.npy')
-    weights[weights < weights.mean()] = 0
+    weights = np.load(input_dir / 'train_nofGames.npy').astype(np.float64)
+    weights[weights < weights.mean()] = 0.
+    weights += 1e-12  # prevent not enough weights with positive probabilities error
     weights = weights / weights.sum()
 
     params = EvolutionParams(
-        n_models = 4,
+        n_models = 8,
         n_fits = 1,
         n_generations = 128,
-        n_train_samples = 1000,
+        n_train_samples = 1500,
         n_valid_samples = 8000,
         train_ids = None,
-        mutation_prob = 0.04,
+        mutation_prob = 0.02,
         score_mode = "weights",
         weights = weights,
         validation_mode="upsampling",
+        regularize=True,
     )
     with mp.Pool(n_threads) as pool:
         results = run_evolution(train_data, valid_data, pool, params)

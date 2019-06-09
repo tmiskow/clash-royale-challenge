@@ -64,21 +64,22 @@ def main(
     valid_y = np.load(input_dir / 'reduced_valid_y.npy')
     train_data = DataSet(train_X, train_y, np.arange(len(train_X)))
     valid_data = DataSet(valid_X, valid_y, np.arange(len(valid_X)) * (-1))
-    weights = np.load(input_dir / 'train_nofGames.npy')
-    weights[weights < weights.mean()] = 0
+    weights = np.load(input_dir / 'train_nofGames.npy').astype(np.float64)
+    weights[weights < weights.mean()] = 1e-6
     weights = weights / weights.sum()
 
     params = EvolutionParams(
-        n_models = 32,
+        n_models = 8,
         n_fits = 1,
-        n_generations = 64,
-        n_train_samples = 1500,
-        n_valid_samples = 4000,
+        n_generations = 32,
+        n_train_samples = 1000,
+        n_valid_samples = 8000,
         train_ids = None,
-        mutation_prob = 0.04,
+        mutation_prob = 0.02,
         score_mode = "weights",
         weights = weights,
         validation_mode="upsampling",
+        regularize=True,
     )
     results = {}
     with open(input_file, 'rb') as file:

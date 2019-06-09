@@ -337,9 +337,9 @@ def main(n_threads, start_train_ids, input_dir, output_path):
         train_ids = None
 
     params = EvolutionParams(
-        n_models = 32,
+        n_models = 24,
         n_fits = 9,
-        n_generations = 192,
+        n_generations = 128,
         n_train_samples = 1500,
         n_valid_samples = 6000,
         train_ids = train_ids,

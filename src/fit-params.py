@@ -21,10 +21,10 @@ np.random.seed(420)
 
 params_dict = {
     'kernel': ['rbf'],
-    'gamma': [1 / i for i in range(80, 130, 20)],
-    'C': [1e0, 1e1, 1e2, 1e3],
-    'epsilon': [1e-3, 3e-3, 1e-2, 3e-2, 1e-1, 3e-1],
-    'shrinking': [True]
+    'gamma': [1 / 90],
+    'C': [1e0, 1e1],
+    'epsilon': [0.02],
+    'shrinking': [False]
 }
 
 
@@ -165,7 +165,7 @@ def create_submission(
             genetic_results=genetic_results[dataset_size],
             train_data=train_data,
             valid_data=valid_data,
-            n_iter=64
+            n_iter=2
         ) for dataset_size in dataset_sizes
     ]
     print(f"Fitting parameters...")

@@ -90,7 +90,7 @@ class EvolutionParams(NamedTuple):
 params_dict = {
     'kernel': ['rbf'],
     'gamma': [1 / i for i in range(80, 130, 20)],
-    'C': [0.9, 1.0, 1.1],
+    'C': [1e0, 1e1, 1e2, 1e3],
     'epsilon': [1e-2],
     'shrinking': [True]
 }
@@ -310,10 +310,11 @@ def run_evolution(train_data: DataSet, valid_data: DataSet, pool: mp.Pool, param
 
 @click.command()
 @click.option("-n", "--n-threads", default=4)
+@click.option("-s", "--start-train-ids", type=str, default="../data/genetic-08-06-19-12-31-00.pkl")
 @click.option("-i", "--input-dir", type=str, default='../data')
 @click.option("-o", "--output-path", type=str,
               default=datetime.now().strftime('../data/genetic-%d-%m-%y-%H-%M-%S.pkl'))
-def main(n_threads, input_dir, output_path):
+def main(n_threads, start_train_ids, input_dir, output_path):
     input_dir = Path(input_dir).resolve()
     output_path = Path(output_path).resolve()
     train_X = np.load(input_dir / 'train_X.npy')
@@ -330,13 +331,18 @@ def main(n_threads, input_dir, output_path):
     # assert weights.min() >= 1
     # weights = weights / weights.max()
 
+    if start_train_ids is not None:
+        train_ids = pickle.load(open(start_train_ids, 'rb'))[-1].model_samples.astype(np.int)
+    else:
+        train_ids = None
+
     params = EvolutionParams(
-        n_models = 24,
+        n_models = 32,
         n_fits = 9,
-        n_generations = 60,
+        n_generations = 192,
         n_train_samples = 1500,
         n_valid_samples = 6000,
-        train_ids = None,
+        train_ids = train_ids,
         mutation_prob = 0.04,
         score_mode = "weights",
         weights = weights,

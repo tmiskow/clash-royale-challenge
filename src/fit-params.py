@@ -16,6 +16,7 @@ from pathlib import Path
 from datetime import datetime
 
 from genetic import DataSet, fit_svr, GenerationResult
+from sklearn.metrics import r2_score
 
 np.random.seed(420)
 
@@ -41,14 +42,15 @@ class FitParamsSamplesResult(NamedTuple):
     epsilon: float
     C: float
     gamma: float
+    score: float
 
 
 class FitParamsThreadResult(NamedTuple):
     dataset_size: int
     best_score_model_result: FitParamsSamplesResult
-    worst_score_model_result: FitParamsSamplesResult
+    # worst_score_model_result: FitParamsSamplesResult
     best_frequency_model_result: FitParamsSamplesResult
-    most_frequent_samples_result: FitParamsSamplesResult
+    # most_frequent_samples_result: FitParamsSamplesResult
 
 
 def get_best_score_model_samples(results: List[GenerationResult]) -> np.array:
@@ -96,19 +98,25 @@ def fit_params_for_samples(
         samples: np.array,
         params: FitParamsThreadParams
 ) -> FitParamsSamplesResult:
-    fitted_params = fit_svr(
+    model = fit_svr(
         params.train_data.X[samples],
         params.train_data.y[samples],
         params.valid_data.X,
         params.valid_data.y,
         n_iter=params.n_iter,
         params_dict=params_dict
-    ).get_params()
+    )
+    model_params = model.get_params()
+    model_score = r2_score(
+        params.valid_data.y,
+        model.predict(params.valid_data.X)
+    )
     return FitParamsSamplesResult(
         samples=samples,
-        epsilon=fitted_params['epsilon'],
-        C=fitted_params['C'],
-        gamma=fitted_params['gamma']
+        epsilon=model_params['epsilon'],
+        C=model_params['C'],
+        gamma=model_params['gamma'],
+        score=model_score
     )
 
 
@@ -117,15 +125,15 @@ def fit_params_thread(params: FitParamsThreadParams) -> FitParamsThreadResult:
         get_best_frequency_model_samples(params.genetic_results), params)
     best_score_model_result = fit_params_for_samples(
         get_best_score_model_samples(params.genetic_results), params)
-    worst_score_model_result = fit_params_for_samples(
-        get_worst_score_model_samples(params.genetic_results), params)
-    most_frequent_samples_result = fit_params_for_samples(
-        get_most_frequent_samples(params.genetic_results, params.dataset_size), params)
+    # worst_score_model_result = fit_params_for_samples(
+    #     get_worst_score_model_samples(params.genetic_results), params)
+    # most_frequent_samples_result = fit_params_for_samples(
+    #     get_most_frequent_samples(params.genetic_results, params.dataset_size), params)
     return FitParamsThreadResult(
         dataset_size=params.dataset_size,
         best_score_model_result=best_score_model_result,
-        worst_score_model_result=worst_score_model_result,
-        most_frequent_samples_result=most_frequent_samples_result,
+        # worst_score_model_result=worst_score_model_result,
+        # most_frequent_samples_result=most_frequent_samples_result,
         best_frequency_model_result=best_frequency_model_result
     )
 
@@ -136,6 +144,7 @@ def save_submission(results: List[FitParamsSamplesResult], output_dir: str, file
         for result in results:
             normalized_samples = result.samples + 1
             samples_string = ",".join([str(sample) for sample in normalized_samples])
+            print(f"Dataset size: {len(result.samples)}, score: {result.score}")
             file.write(f"{result.epsilon};{result.C};{result.gamma};{samples_string}\n")
     print(f"Saved submission to {path}")
 
@@ -144,10 +153,10 @@ def save_results(results: List[FitParamsThreadResult], output_dir: str):
     base_filename = datetime.now().strftime('submission-%d-%m-%y-%H-%M-%S.txt')
     best_score_model_results = [result.best_score_model_result for result in results]
     save_submission(best_score_model_results, output_dir, f"best-model-{base_filename}")
-    worst_score_model_results = [result.worst_score_model_result for result in results]
-    save_submission(worst_score_model_results, output_dir, f"worst-model-{base_filename}")
-    most_frequent_samples_results = [result.most_frequent_samples_result for result in results]
-    save_submission(most_frequent_samples_results, output_dir, f"most-frequent-{base_filename}")
+    # worst_score_model_results = [result.worst_score_model_result for result in results]
+    # save_submission(worst_score_model_results, output_dir, f"worst-model-{base_filename}")
+    # most_frequent_samples_results = [result.most_frequent_samples_result for result in results]
+    # save_submission(most_frequent_samples_results, output_dir, f"most-frequent-{base_filename}")
     best_frequency_model_results = [result.best_frequency_model_result for result in results]
     save_submission(best_frequency_model_results, output_dir, f"best-frequency-{base_filename}")
 

@@ -15,7 +15,7 @@ params_dict = {
     'kernel': ['rbf'],
     'gamma': [1 / i for i in range(80, 130, 20)],
     'C': [1e0, 1e1, 1e2, 1e3],
-    'epsilon': [2e-2, 4e-2, 8e-2],
+    'epsilon': [1e-3, 3e-3, 1e-2, 3e-2, 1e-1, 3e-1],
     'shrinking': [False]
 }
 
@@ -66,7 +66,7 @@ def main(n_threads, input_path, input_dir, output_path):
     with open(input_path, 'r') as input_file:
         for line, dataset_size in zip(input_file, dataset_sizes):
             _, _, _, samples_string = line.split(";")
-            genetic_results[dataset_size] = [int(sample) for sample in samples_string.split(",")]
+            genetic_results[dataset_size] = [int(sample)-1 for sample in samples_string.split(",")]
 
     train_data, valid_data = load_data(input_dir)
     fit_params = [
@@ -75,7 +75,7 @@ def main(n_threads, input_path, input_dir, output_path):
             genetic_results=genetic_results[dataset_size],
             train_data=train_data,
             valid_data=valid_data,
-            n_iter=24
+            n_iter=64
         ) for dataset_size in dataset_sizes
     ]
     print(f"Fitting parameters...")

@@ -99,7 +99,6 @@ params_dict = {
 
 
 def sample(n_samples: int, ids: np.array, weights: np.array=None) -> np.array:
-    print(len(ids), n_samples)
     selected_ids = np.random.choice(ids, n_samples, replace=False, p=weights)
     selected_index = np.isin(ids, selected_ids, assume_unique=True)
     return selected_index  # same shape as ids, for easier selection
@@ -277,7 +276,6 @@ def resample_validation(train_data:DataSet, valid_data: DataSet, train_for_valid
         y=np.concatenate([valid_data.y, train_data.y[chosen_ids]]),
         ids=np.arange(len(valid_data.y) + len(chosen_ids))
     )
-    print(new_valid.ids.shape, new_valid.X.shape)
     valid_index = sample(n_valid_samples, new_valid.ids)
     return new_valid, valid_index
 

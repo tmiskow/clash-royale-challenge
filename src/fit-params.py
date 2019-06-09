@@ -72,7 +72,7 @@ def get_most_frequent_samples(results: List[GenerationResult], size: int) -> np.
     samples = np.concatenate(np.concatenate(
         [result.model_samples.astype('int64') for result in results]))
     unique_samples, unique_samples_counts = np.unique(samples, return_counts=True)
-    most_frequent_ids = np.argsort(unique_samples_counts)[:size]
+    most_frequent_ids = np.argsort(-unique_samples_counts)[:size]
     most_frequent_samples = unique_samples[most_frequent_ids]
     return most_frequent_samples
 
@@ -134,7 +134,8 @@ def save_submission(results: List[FitParamsSamplesResult], output_dir: str, file
     path = Path(output_dir) / filename
     with open(path, "w") as file:
         for result in results:
-            samples_string = ",".join([str(sample) for sample in result.samples])
+            normalized_samples = result.samples + 1
+            samples_string = ",".join([str(sample) for sample in normalized_samples])
             file.write(f"{result.epsilon};{result.C};{result.gamma};{samples_string}\n")
     print(f"Saved submission to {path}")
 

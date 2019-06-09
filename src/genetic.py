@@ -99,6 +99,7 @@ params_dict = {
 
 
 def sample(n_samples: int, ids: np.array, weights: np.array=None) -> np.array:
+    print(len(ids), n_samples)
     selected_ids = np.random.choice(ids, n_samples, replace=False, p=weights)
     selected_index = np.isin(ids, selected_ids, assume_unique=True)
     return selected_index  # same shape as ids, for easier selection
@@ -276,7 +277,8 @@ def resample_validation(train_data:DataSet, valid_data: DataSet, train_for_valid
         y=np.concatenate([valid_data.y, train_data.y[chosen_ids]]),
         ids=np.arange(len(valid_data.y) + len(chosen_ids))
     )
-    valid_index = sample(n_valid_samples, valid_data.ids)
+    print(new_valid.ids.shape, new_valid.X.shape)
+    valid_index = sample(n_valid_samples, new_valid.ids)
     return new_valid, valid_index
 
 
@@ -306,7 +308,7 @@ def run_evolution(train_data: DataSet, valid_data: DataSet, pool: mp.Pool, param
         train_data=train_data,
         n_train_samples=params.n_train_samples,
         train_probs=train_probs,
-        valid_data=valid_data,
+        valid_data=new_valid_data,
         valid_index=valid_index,
         mutation_prob=params.mutation_prob,
         train_ids=train_ids,
@@ -353,11 +355,11 @@ def main(n_threads, input_dir, output_path):
     weights = weights / weights.sum()
 
     params = EvolutionParams(
-        n_models = 32,
+        n_models = 4,
         n_fits = 1,
-        n_generations = 512,
-        n_train_samples = 1500,
-        n_valid_samples = 4000,
+        n_generations = 128,
+        n_train_samples = 1000,
+        n_valid_samples = 8000,
         train_ids = None,
         mutation_prob = 0.04,
         score_mode = "weights",

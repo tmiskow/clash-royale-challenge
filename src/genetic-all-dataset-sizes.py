@@ -73,7 +73,7 @@ def main(
         n_fits = 1,
         n_generations = 64,
         n_train_samples = 1500,
-        n_valid_samples = 4000,
+        n_valid_samples = 8000,
         train_ids = None,
         mutation_prob = 0.04,
         score_mode = "weights",

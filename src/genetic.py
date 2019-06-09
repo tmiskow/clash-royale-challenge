@@ -91,10 +91,10 @@ class EvolutionParams(NamedTuple):
 # defaults for random hyperparameter search
 params_dict = {
     'kernel': ['rbf'],
-    'gamma': [1 / i for i in range(80, 130, 20)],
-    'C': [1e0, 1e1, 1e2, 1e3],
-    'epsilon': [1e-2],
-    'shrinking': [True]
+    'gamma': [1.0 / 90],
+    'C': [1.0],
+    'epsilon': [0.02],
+    'shrinking': [False]
 }
 
 
@@ -354,7 +354,7 @@ def main(n_threads, input_dir, output_path):
 
     params = EvolutionParams(
         n_models = 32,
-        n_fits = 9,
+        n_fits = 1,
         n_generations = 512,
         n_train_samples = 1500,
         n_valid_samples = 4000,

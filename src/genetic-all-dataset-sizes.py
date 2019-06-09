@@ -70,8 +70,8 @@ def main(
 
     params = EvolutionParams(
         n_models = 32,
-        n_fits = 9,
-        n_generations = 16,
+        n_fits = 1,
+        n_generations = 64,
         n_train_samples = 1500,
         n_valid_samples = 4000,
         train_ids = None,

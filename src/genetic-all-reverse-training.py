@@ -120,13 +120,13 @@ def main(
     weights[weights < weights.mean()] = 0
     weights = weights / weights.sum()
     params = EvolutionParams(
-        n_models=32,
-        n_fits=12,
-        n_generations=64,
+        n_models=24,
+        n_fits=9,
+        n_generations=48,
         n_train_samples=1500,
         n_valid_samples=6000,
         train_ids=None,
-        mutation_prob=0.4,
+        mutation_prob=0.08,
         score_mode="weights",
         weights=weights,
     )

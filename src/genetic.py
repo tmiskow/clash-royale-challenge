@@ -94,7 +94,7 @@ params_dict = {
     'gamma': [1 / i for i in range(80, 130, 20)],
     'C': [1e0, 1e1, 1e2, 1e3],
     'epsilon': [1e-2],
-    'shrinking': [True]
+    'shrinking': [False]
 }
 
 

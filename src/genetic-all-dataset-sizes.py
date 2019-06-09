@@ -60,8 +60,8 @@ def main(
     output_path = Path(output_path).resolve()
     train_X = np.load(input_dir / 'train_X.npy')
     train_y = np.load(input_dir / 'train_y.npy')
-    valid_X = np.load(input_dir / 'reduced_valid_X.npy')
-    valid_y = np.load(input_dir / 'reduced_valid_y.npy')
+    valid_X = np.load(input_dir / 'valid_mix_X.npy')
+    valid_y = np.load(input_dir / 'valid_mix_y.npy')
     train_data = DataSet(train_X, train_y, np.arange(len(train_X)))
     valid_data = DataSet(valid_X, valid_y, np.arange(len(valid_X)) * (-1))
     weights = np.load(input_dir / 'train_nofGames.npy')
@@ -73,12 +73,12 @@ def main(
         n_fits = 1,
         n_generations = 64,
         n_train_samples = 1500,
-        n_valid_samples = 4000,
+        n_valid_samples = 6000,
         train_ids = None,
         mutation_prob = 0.04,
         score_mode = "weights",
         weights = weights,
-        validation_mode="upsampling",
+        validation_mode="original",
     )
     results = {}
     with open(input_file, 'rb') as file:

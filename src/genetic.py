@@ -285,6 +285,7 @@ def run_evolution(train_data: DataSet, valid_data: DataSet, pool: mp.Pool, param
         valid_index = sample(params.n_valid_samples, valid_data.ids)
     elif params.validation_mode == "upsampling":
         train_for_validation_ids = train_data.ids[params.weights > params.weights.mean()]
+        new_valid_data, valid_index = resample_validation(train_data, valid_data, train_for_validation_ids, params.n_valid_samples)
     else:
         raise AttributeError(f"Validation mode {params.validation_mode} does not exists")
 
@@ -299,7 +300,6 @@ def run_evolution(train_data: DataSet, valid_data: DataSet, pool: mp.Pool, param
     else:
         train_ids = params.train_ids
 
-    new_valid_data, valid_index = resample_validation(train_data, valid_data, train_for_validation_ids, params.n_valid_samples)
     next_gen_params = GenerationParams(
         n_models=params.n_models,
         n_fits=params.n_fits,

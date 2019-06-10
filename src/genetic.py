@@ -92,7 +92,7 @@ class EvolutionParams(NamedTuple):
 params_dict = {
     'kernel': ['rbf'],
     'gamma': [1.0 / 90],
-    'C': [1.0],
+    'C': [1.0, 10, 100],
     'epsilon': [0.02],
     'shrinking': [False]
 }

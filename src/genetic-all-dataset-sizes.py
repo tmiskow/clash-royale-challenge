@@ -71,7 +71,7 @@ def main(
     params = EvolutionParams(
         n_models = 24,
         n_fits = 3,
-        n_generations = 64,
+        n_generations = 32,
         n_train_samples = 1500,
         n_valid_samples = 6000,
         train_ids = None,
